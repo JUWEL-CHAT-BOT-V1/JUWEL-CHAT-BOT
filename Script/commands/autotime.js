@@ -1,382 +1,206 @@
-const fs = require("fs");
-
-const path = require("path");
-
-const axios = require("axios");
-
-const { Readable } = require("stream");
-
-
-// ==================== ডেটা ====================
-
-const prayerTimes = {
-
-  Fajr: "5:35 AM",
-
-  Dhuhr: "1:30 PM",
-
-  Asr: "4:00 PM",
-
-  Maghrib: "5:30 PM",
-
-  Isha: "7:45 PM"
-
-};
-
-
-const dailyDua = [
-
-  "হে আল্লাহ! আমাকে পথে পরিচালিত কর এবং আমার অন্তরকে ঈমানের আলোয় ভরিয়ে দাও।",
-
-  "হে আল্লাহ! আমাকে পাপ থেকে দূরে রাখ, যেমন পূর্ব ও পশ্চিম একে অপর থেকে দূরে।"
-
-];
-
-
-const dailyHadith = [
-
-  "রাসুল ﷺ বলেছেন: 'যে ব্যক্তি একটি ভাল কাজের দিকনির্দেশ করে, সে সেই কাজের সমান সওয়াব পাবে।' (মুসলিম)",
-
-  "রাসুল ﷺ বলেছেন: 'তোমাদের মধ্যে উত্তম সেই ব্যক্তি, যে কুরআন শেখে ও অন্যকে শেখায়।' (বুখারী)"
-
-];
-
-
-const islamicQuotes = [
-
-  "সর্বোত্তম সম্পদ হলো সন্তুষ্টি। – হযরত আলী (রাঃ)",
-
-  "যে আল্লাহর উপর ভরসা করে, আল্লাহ তার জন্য যথেষ্ট। – সূরা আত-তালাক ৬৫:৩",
-
-  "দুনিয়া মুমিনের কারাগার ও কাফেরের জান্নাত। – মুসলিম",
-
-  "আল্লাহ সেই জাতির অবস্থা পরিবর্তন করেন না, যতক্ষণ না তারা নিজেরা নিজেদের পরিবর্তন করে। – সূরা আর-রাদ ১৩:১১"
-
-];
-
-
-const ramadanMessage = [
-
-  "রমজান মুবারক! আল্লাহর রহমত, মাগফিরাত ও নাজাতের শ্রেষ্ঠ মাসে বেশি বেশি ইবাদত করো।",
-
-  "রোজা শুধু ক্ষুধা-তৃষ্ণা নয়, বরং আত্মার পরিশুদ্ধি ও আল্লাহর নিকটে যাওয়ার মাধ্যম।"
-
-];
-
-
-const goodNightMsg = [
-
-  "শুভ রাত্রি! ঘুমানোর আগে আল্লাহকে স্মরণ করুন, ক্ষমা চেয়ে নিদ্রা নিন।",
-
-  "রাসুল ﷺ বলেছেন: ‘যে ব্যক্তি ঘুমানোর আগে সূরা ইখলাস, ফালাক ও নাস তিনবার পাঠ করবে, সে আল্লাহর হেফাজতে থাকবে।’"
-
-];
-
-
-const defaultAdhan = "https://i.imgur.com/95GRyZE.mp4";
-
-
-// ==================== হেল্পার ====================
-
-function getCurrentTimeInDhaka() {
-
-  return new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" });
-
-}
-
-
-function getHijriDate(date) {
-
-  try {
-
-    return new Intl.DateTimeFormat('bn-BD-u-ca-islamic', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
-
-  } catch {
-
-    return "হিজরী তারিখ";
-
-  }
-
-}
-
-
-function parsePrayerTime(time) {
-
-  const [t, period] = time.split(' ');
-
-  let [h, m] = t.split(':').map(Number);
-
-  if (period === 'PM' && h !== 12) h += 12;
-
-  if (period === 'AM' && h === 12) h = 0;
-
-  return h * 60 + m;
-
-}
-
-
-async function getAudioStream(url) {
-
-  try {
-
-    const res = await axios({ method: "GET", url, responseType: "arraybuffer" });
-
-    return Readable.from(Buffer.from(res.data));
-
-  } catch {
-
-    return null;
-
-  }
-
-}
-
-
-// ==================== প্রিমিয়াম ফ্রেম ====================
-
-const prayerReminderFrame = (name, time) => `
-
-╔═══════ 🕌 ═══════╗
-
-   ⏰*${name} নামাজের সময়* 
-
-╠═════════════════╣
-
-⏰ *সময়:* ${time}
-
-📍 *নিকটস্থ মসজিদে আদায় করুন*
-
-🤲 *আল্লাহর সন্তুষ্টির জন্য নামাজ কায়েম করুন*
-
-╚═══════ 🕌 ═══════╝
-
-⎯꯭𓆩꯭𝆺𝅥😻⃞𝐌⃞𝆠፝֟𝐑᭄ღ倫 𝐉⃞𝐔⃞𝐖⃞𝐄⃞𝐋༢࿐
-
-`;
-
-
-const dailyIslamicFrame = (dua, hadith, quote) => `
-
-╔═══  আজকের বার্তা ═══╗
-
-📌 *দোয়া:*  
-
-${dua}
-
-
-📌 *হাদিস:*  
-
-${hadith}
-
-
-📌 *ইসলামিক উক্তি:*  
-
-${quote}
-
-╚═════════════════╝
-
-⎯꯭𓆩꯭𝆺𝅥😻⃞𝐌⃞𝆠፝֟𝐑᭄ღ倫 𝐉⃞𝐔⃞𝐖⃞𝐄⃞𝐋༢࿐
-
-`;
-
-
-const goodNightFrame = (msg) => `
-
-╔═════  শুভ রাত্রি  ═════╗
-
-${msg}
-
-╚═════════════════╝
-
-⎯꯭𓆩꯭𝆺𝅥😻⃞𝐌⃞𝆠፝֟𝐑᭄ღ倫 𝐉⃞𝐔⃞𝐖⃞𝐄⃞𝐋༢࿐
-
-`;
-
-
-const sleepReminderFrame = () => `
-
-╔══ 💫 ঘুমের রিমাইন্ডার ══╗
-
-    রাত ১০টা বাজে🙂
-
-    সবাই ঘুমিয়ে যাও🥰… 
-
- 
-
-ঘুমানোর আগে আল্লাহকে স্মরণ করুন 🤲  🥰🛏 শান্তি ও স্বপ্নময়    ঘুম কামনা করো
-
-╚═════════════════╝
-
-⎯꯭𓆩꯭𝆺𝅥😻⃞𝐌⃞𝆠፝֟𝐑᭄ღ倫 𝐉⃞𝐔⃞𝐖⃞𝐄⃞𝐋༢࿐
-
-`;
-
-
-const ramadanFrame = (msg) => `
-
-╔═══ রমজান মোবারক═══╗
-
-${msg}
-
-🌟 বেশি ইবাদত করুন, আল্লাহর রহমত লাভ করুন  
-
-╚═════════════════╝
-
-⎯꯭𓆩꯭𝆺𝅥😻⃞𝐌⃞𝆠፝֟𝐑᭄ღ倫 𝐉⃞𝐔⃞𝐖⃞𝐄⃞𝐋༢࿐
-
-`;
-
-
-// ==================== Module Config ====================
-
 module.exports.config = {
-
-  name: "autotime_pro",
-
-  version: "3.3.3",
-
-  permission: 0,
-
-  credits: "MR JUWEL",
-
-  description: "Islamic Time Alert (Premium Frames Added)",
-
-  prefix: true,
-
-  commandCategory: "user",
-
-  cooldowns: 5
-
+    name: "autotime",
+    version: "2.0.0",
+    hasPermssion: 0,
+    credits: "SHAHADAT SAHU", //don't change credits 
+    description: "Ramadan Islamic captions every hour",
+    commandCategory: "system",
+    usages: "",
+    cooldowns: 5
 };
 
-
-// ==================== onLoad ====================
+const messages = [
+{
+timer: "12:00:00 AM",
+period: "রাত",
+message: [
+"ঘুমিয়ে পড়ো সবাই… 😴\nফজরের আগে সেহরির সময়ে আবার উঠতে হবে। ⏰\nআল্লাহ আমাদের রোজা, সেহরি ও আমল কবুল করুন। 🤲"
+]
+},
+{
+timer: "1:00:00 AM",
+period: "রাত",
+message: [
+"এখনো জেগে আছো?\nতাড়াতাড়ি ঘুমিয়ে পড়ো… 😴\nনাহলে সেহরির সময় ঠিক সময়ে উঠতে পারবে না। 🌤️"
+]
+},
+{
+timer: "2:00:00 AM",
+period: "রাত",
+message: [
+"আরে, রাত দুইটা বাজে গেছে! ⏰\nসবাই ঘুমিয়ে পড়লে মনে হয়… 😴\nযারা এখনো জেগে আছো—চল তাড়াতাড়ি ঘুমিয়ে পড়ো,\nসেহেরি আর নামাজ মিস করলে কিন্তু চলবে না! 🍽️🕌✨"
+]
+},
+{
+timer: "3:00:00 AM",
+period: "সাহরি",
+message: [
+"সেহেরি খাওয়ার সময় হয়ে যাচ্ছে… ⏰\nশুয়ে না থেকে বিছানা থেকে উঠুন, ফ্রেশ হয়ে নিন 🚿\nসেহেরি করার জন্য প্রস্তুতি নিন। ✨"
+]
+},
+{
+timer: "4:00:00 AM",
+period: "সাহরি",
+message: [
+"সেহরি করার সময় হয়ে গেছে… ⏰\nএখনো যারা করেননি—\nদ্রুত সেহরি সেরে ফেলুন। 🤍\n\n📖 সেহরির নিয়ত\n\nউচ্চারণ:\nনাওয়াইতু আন আসুম্মা গাদান মিন শাহরি রমাদানাল মুবারাকি ফারদাল্লাকা ইয়া আল্লাহু, ফাতাকাব্বাল মিন্নি—ইন্নাকা আনতাস সামিয়ুল আলীম।\n\n📘 অর্থ:\n“হে আল্লাহ! আমি আপনার সন্তুষ্টির জন্য বরকতময় রমজান মাসের আগামীকালের রোজা রাখার নিয়ত করলাম।\nহে আল্লাহ! আপনি এটি আমার পক্ষ থেকে কবুল করুন। নিশ্চয়ই আপনি সর্বশ্রোতা ও সর্বজ্ঞানী।”"
+]
+},
+{
+timer: "5:00:00 AM",
+period: "ফজর",
+message: [
+"ফজরের আযান হয়ে গেছে… 🕌\nফজরের নামাজ পড়ুন,\nনামাজের পর সুযোগ হলে কোরআন তেলাওয়াত করুন। 📖\nআপনার রোজা বরকতময় হোক। 🥰"
+]
+},
+{
+timer: "6:00:00 AM",
+period: "সকাল",
+message: [
+"এত সকালে ঘুম থেকে উঠে পড়লে নাকি? 🌅\nএখনো রেস্ট করছ? 😌\nতোমার সকালটা ভালো কাটুক। ☀️"
+]
+},
+{
+timer: "7:00:00 AM",
+period: "সকাল",
+message: [
+"ঘুম থেকে উঠে পড়লে,\nফ্রেশ হয়ে কাজে মন দাও। 🌤️\nইনশাআল্লাহ তোমার পুরো দিনটা বরকতময় কাটবে। 🤲"
+]
+},
+{
+timer: "8:00:00 AM",
+period: "সকাল",
+message: [
+"হে ঈমানদারগণ!\nতোমাদের ওপর রোজা ফরজ করা হয়েছে,\nযেমন ফরজ করা হয়েছিল তোমাদের পূর্ববর্তীদের ওপর—\nযাতে তোমরা তাকওয়া অর্জন করতে পারো।\n— Al-Quran (সূরা আল-বাকারা: ১৮৩)"
+]
+},
+{
+timer: "9:00:00 AM",
+period: "সকাল",
+message: [
+"আল্লাহর ইবাদত করো এবং তাঁর সাথে কাউকে শরিক করো না;\nমাতাপিতা, এতিম, মিসকিন, অসহায় সকলের প্রতি সদাচরণ করো।\n— Al-Quran (সূরা আন-নিসা: ৩৬)"
+]
+},
+{
+timer: "10:00:00 AM",
+period: "সকাল",
+message: [
+"যে ব্যক্তি রোজা রেখে মিথ্যা কথা ও মিথ্যা কাজ পরিত্যাগ করলো না,\nতাহলে তার পানাহার বর্জন করাতে\nআল্লাহর কোনো প্রয়োজন নেই।\n— Sahih al-Bukhari"
+]
+},
+{
+timer: "11:00:00 AM",
+period: "দুপুর",
+message: [
+"নবী করীম (সা.) বলেন,\n‘জান্নাতের মধ্যে রাইয়ান নামক একটি দরজা আছে,\nযা দিয়ে কেয়ামতের দিন কেবল রোজাদার ব্যক্তিরাই প্রবেশ করবেন।’\n— Sahih al-Bukhari (হাদিস নং ১৭৬৩)"
+]
+},
+{
+timer: "12:00:00 PM",
+period: "দুপুর",
+message: [
+"দুপুর হয়ে গেছে… ☀️\nরোজা রেখেছো তো? 🤲\nতাহলে নামাজের জন্য গোসল ও অজু করার প্রস্তুতি নাও। 🕌"
+]
+},
+{
+timer: "1:00:00 PM",
+period: "দুপুর",
+message: [
+"নামাজের সময় হয়ে যাচ্ছে… ⏰\nরেডি হয়ে মসজিদে চলে যাও\nনামাজ আদায় করার জন্য। ✨"
+]
+},
+{
+timer: "2:00:00 PM",
+period: "বিকাল",
+message: [
+"রাসূলুল্লাহ (সা.) বলেছেন:\nযে ব্যক্তি ঈমানের সাথে সওয়াবের আশায় রমজানের রোজা রাখবে,\nতার পূর্বের সকল গুনাহ ক্ষমা করে দেওয়া হবে।\n— Sahih al-Bukhari"
+]
+},
+{
+timer: "3:00:00 PM",
+period: "বিকাল",
+message: [
+"রোজা হচ্ছে (জাহান্নামের আগুন থেকে বাঁচার) ঢাল স্বরূপ।\nসুতরাং রোজা রেখে কেউ যেন অশ্লীল কথা না বলে\nএবং ঝগড়া-বিবাদে লিপ্ত না হয়।\n— Sahih al-Bukhari (হাদিস: ১৮৯৪)"
+]
+},
+{
+timer: "4:00:00 PM",
+period: "বিকাল",
+message: [
+"কিছুক্ষণ পর আসরের আযান হবে…\nআসরের আযানের অপেক্ষা করুন\nএবং নামাজের জন্য প্রস্তুতি নিন। ⏰🕌\n\n“রমজানে প্রতিটি নফল ইবাদতের সওয়াব\nঅন্য সময়ের একটি ফরজ ইবাদতের সমান।\nআর একটি ফরজ আদায় করলে\n৭০টি ফরজের সমান সওয়াব পাওয়া যায়।”\n— Mishkat al-Masabih (হাদিস: ১৮৬৫)"
+]
+},
+{
+timer: "5:00:00 PM",
+period: "সন্ধ্যা",
+message: [
+"ইফতারের প্রস্তুতি নিন,\nহালাল খাবার দিয়ে রোজা ভাঙুন। 🍽️\n\n“যখন রাত ঘনিয়ে আসে, দিন চলে যায় এবং সূর্য ডুবে যায়—\nতখনই রোজাদার ইফতার করবে।”\n— Sahih al-Bukhari (হাদিস: ১৮৩০)"
+]
+},
+{
+timer: "6:00:00 PM",
+period: "ইফতার",
+message: [
+"রোজাদারের জন্য দুটি বিশেষ আনন্দের মুহূর্ত রয়েছে—\nএকটি হলো ইফতারের সময়,\nআর অন্যটি হলো যখন সে তার রবের সাথে সাক্ষাৎ করবে।\n— Sahih Muslim (হাদিস: ১১৫১)\n\n🕌 📘 ইফতারের নিয়ত\n\nউচ্চারণ:\n“আল্লাহুম্মা লাকা সুমতু, ওয়া আলা রিজক্বিকা আফতারতু।”\n\nঅর্থ:\n“হে আল্লাহ! আমি তোমারই জন্য রোজা রেখেছি এবং তোমারই রিজিক দ্বারা ইফতার করছি।”"
+]
+},
+{
+timer: "7:00:00 PM",
+period: "সন্ধ্যা",
+message: [
+"সারাদিন রোজা রেখেছো…\nমনে হচ্ছে ইফতার আর মাগরিবের নামাজের পর এখন অনেক ক্লান্ত। 😌\nতাহলে একটু রেস্ট নাও…\nতারপর এশার নামাজ ও তারাবির জন্য প্রস্তুতি নাও। 😊"
+]
+},
+{
+timer: "8:00:00 PM",
+period: "তারাবি",
+message: [
+"এশারের আজান হয়ে গেছে… 🕌\nনামাজ পড়তে গেছো তো?\nযদি এখনও না যাও—\nতাহলে দ্রুত রেডি হয়ে নাও।\n\nআজান পড়ে গেলে দেরি না করে মসজিদে চলে যাও,\nএশার নামাজ আদায় করো মনোযোগ ও বিনয়ের সাথে। 🥰"
+]
+},
+{
+timer: "9:00:00 PM",
+period: "রাত",
+message: [
+"যে ব্যক্তি ঈমানের সাথে এবং সওয়াব হাসিলের আশায়\nরমজানের রাতে (তারাবিহ ও তাহাজ্জুদে) দাঁড়াবে,\nতার অতীতের সমস্ত গুনাহ ক্ষমা করে দেওয়া হবে।\n— Sahih al-Bukhari (হাদিস: ২০০০)"
+]
+},
+{
+timer: "10:00:00 PM",
+period: "রাত",
+message: [
+"রাতে ঘুমানোর আগে এই দোয়াটি পড়ে নিও—\n\nউচ্চারণ:\n‘আল্লাহুম্মা বিসমিকা আমুতু ওয়া আহইয়া।’\n\nঅর্থ:\n“হে আল্লাহ! আপনার নামেই আমি মৃত্যুবরণ করছি এবং আপনার নামেই জীবিত হবো।”\n\n— Sahih al-Bukhari (হাদিস: ৬৩১২)"
+]
+},
+{
+timer: "11:00:00 PM",
+period: "রাত",
+message: [
+"যে ব্যক্তি ঈমানের সাথে এবং সওয়াব হাসিলের আশায়\nরমজানের রোজা রাখবে\nএবং রমজানের রাতে নামাজে (তারাবিহ ও তাহাজ্জুদে) দাঁড়াবে—\nতার অতীতের সমস্ত গুনাহ ক্ষমা করে দেওয়া হবে।\n\n— Sahih al-Bukhari (হাদিস: ১৯০১)"
+]
+}
+];
 
 module.exports.onLoad = ({ api }) => {
+    setInterval(() => {
+        const now = new Date(Date.now() + 21600000);
+        const formattedTime = now.toLocaleTimeString("en-US", { hour12: true });
 
-  if (global.autotimeInterval) clearInterval(global.autotimeInterval);
+        const data = messages.find(item => item.timer === formattedTime);
+        if (data) {
+            const text = data.message[Math.floor(Math.random() * data.message.length)];
 
+            const finalMessage =
+`𝐑𝐀𝐌𝐀𝐃𝐀𝐍 𝐑𝐄𝐌𝐈𝐍𝐃𝐄𝐑 🌺
 
-  const sent = new Set();
+⏰ Time: ${data.period} ${formattedTime}
 
+${text}`;
 
-  global.autotimeInterval = setInterval(async () => {
-
-    try {
-
-      const nowStr = getCurrentTimeInDhaka();
-
-      const now = new Date(nowStr);
-
-      const hour = now.getHours();
-
-      const minute = now.getMinutes();
-
-      const currentMinutes = hour * 60 + minute;
-
-      const hijri = getHijriDate(now);
-
-
-      // 📌 5:10 — Daily Islamic Message
-
-      if (hour === 5 && minute === 10 && !sent.has("daily")) {
-
-        sent.add("daily");
-
-        const msg = dailyIslamicFrame(
-
-          dailyDua[Math.floor(Math.random() * dailyDua.length)],
-
-          dailyHadith[Math.floor(Math.random() * dailyHadith.length)],
-
-          islamicQuotes[Math.floor(Math.random() * islamicQuotes.length)]
-
-        );
-
-        for (const t of global.data.allThreadID) api.sendMessage(msg, t);
-
-      }
-
-
-      // 📌 Ramadan Alert
-
-      if ((hijri.includes("রমজান") || hijri.includes("Ramadan")) && hour === 4 && minute === 10) {
-
-        const msg = ramadanFrame(ramadanMessage[Math.floor(Math.random() * ramadanMessage.length)]);
-
-        for (const t of global.data.allThreadID) api.sendMessage(msg, t);
-
-      }
-
-
-      // 📌 10:00 PM — Sleep Reminder
-
-      if (hour === 22 && minute === 0 && !sent.has("sleepReminder")) {
-
-        sent.add("sleepReminder");
-
-        for (const t of global.data.allThreadID)
-
-          api.sendMessage(sleepReminderFrame(), t);
-
-      }
-
-
-      // 📌 10:05 PM — Good Night
-
-      if (hour === 22 && minute === 5 && !sent.has("night")) {
-
-        sent.add("night");
-
-        for (const t of global.data.allThreadID)
-
-          api.sendMessage(goodNightFrame(goodNightMsg[Math.floor(Math.random() * goodNightMsg.length)]), t);
-
-      }
-
-
-      // 📌 Prayer Reminder + Adhan
-
-      for (const [name, time] of Object.entries(prayerTimes)) {
-
-        const tMin = parsePrayerTime(time);
-
-        if (Math.abs(tMin - currentMinutes) === 10 && !sent.has(name)) {
-
-          sent.add(name);
-
-          const audio = await getAudioStream(defaultAdhan);
-
-          const body = prayerReminderFrame(name, time);
-
-
-          for (const t of global.data.allThreadID) {
-
-            api.sendMessage(
-
-              audio ? { body, attachment: audio } : body,
-
-              t
-
-            );
-
-          }
-
-        }
-
-      }
-
-
-      // Reset
-
-      if (hour === 0 && minute === 1) sent.clear();
-
-
-    } catch (e) {}
-
-  }, 60 * 1000);
-
+            global.data.allThreadID.forEach(threadID => {
+                api.sendMessage(finalMessage, threadID);
+            });
+        }
+    }, 1000);
 };
 
-
-module.exports.run = () => "Autotime Pro Premium Frames Updated ✔️";
+module.exports.run = () => {};
