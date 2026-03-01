@@ -1,26 +1,31 @@
 module.exports.config = {
- name: "mr juwel",
- version: "1.0.0",
- hasPermssion: 0,
- credits: "➝CEO─ JUWEL➺ 😘😈🩵🪽❤️🪽🩶🪽󱢏",
- description: "Bot will reply when someone tags any of the admins",
- commandCategory: "Other",
- usages: "@",
- cooldowns: 1
+  name: "mr juwel",
+  version: "1.0.0",
+  hasPermssion: 0,
+  credits: "➝CEO─ JUWEL➺ 😘😈🩵🪽❤️🪽🩶🪽󱢏",
+  description: "Bot will reply when someone tags any of the admins",
+  commandCategory: "Other",
+  usages: "@",
+  cooldowns: 1
 };
 
 module.exports.handleEvent = function({ api, event }) {
- const adminIDs = ["100071528325738", "100071528325738", "100056725134303"].map(String);
- 
- if (adminIDs.includes(String(event.senderID))) return;
+  const adminIDs = [...new Set(["100071528325738", "100056725134303"].map(String))];
 
- const mentionedIDs = event.mentions ? Object.keys(event.mentions).map(String) : [];
- const isMentioningBoss = adminIDs.some(adminID => mentionedIDs.includes(adminID));
+  // যদি অ্যাডমিন নিজেই মেসেজ পাঠায়
+  if (adminIDs.includes(String(event.senderID))) return;
 
- if (isMentioningBoss) {
- const replies = [
- "ডাকাডাকি করিস না জুয়েল বস ব্যস্ত আছে 😒😌",
- "হ্যাঁলো জুয়েল বস এক আবাল😏 আপনাকে মেনশন দিছে 😑🌚😁",
+  // যদি মেসেজটি রিপ্লাই হয়, কিছু না করা
+  if (event.messageReply) return;
+
+  // মেনশন চেক
+  const mentionedIDs = event.mentions ? Object.keys(event.mentions).map(String) : [];
+  const isMentioningBoss = adminIDs.some(adminID => mentionedIDs.includes(adminID));
+
+  if (isMentioningBoss) {
+    const replies = [
+      "ডাকাডাকি করিস না জুয়েল বস ব্যস্ত আছে 😒😌",
+     "হ্যাঁলো জুয়েল বস এক আবাল😏 আপনাকে মেনশন দিছে 😑🌚😁",
  "যেভাবে মেনশন দিতাচত মনে হয় তোর গার্লফ্রেন্ডটারে , আমার বসকে দিয়া দিবি 🫥😒",
  "বস এক পাগল ছাগল , আপনাকে ডাকতেছে 🐸🫵",
  "বস এক হালায় আপনার নাম ধরছে , আপনি শুধু একবার আদেশ করুন, আজকে হালার নানিরে চমলক্ক করে দিমু 😑🥴",
@@ -69,9 +74,12 @@ module.exports.handleEvent = function({ api, event }) {
  "তুই কি জানিস বসকে মেনশন করা মানেই জীবনের রিস্ক? 😮⚠️",
  "মেনশন মারছিস আর বস তো তোর প্রোফাইলে ঢুইকা পিক enlarge দিতাছে 😏🔍",
  "এইভাবে মেনশন করতাস, না জানি তুই প্রেমে পড়ছোস কিনা 😼❤️"
- ];
- return api.sendMessage(replies[Math.floor(Math.random() * replies.length)], event.threadID, event.messageID);
- }
+      "এইভাবে মেনশন করতাস, না জানি তুই প্রেমে পড়ছোস কিনা 😼❤️"
+    ];
+
+    const randomReply = replies[Math.floor(Math.random() * replies.length)];
+    return api.sendMessage(randomReply, event.threadID, event.messageID);
+  }
 };
 
 module.exports.run = async function() {};
