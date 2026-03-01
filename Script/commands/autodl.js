@@ -1,170 +1,88 @@
 const axios = require("axios");
 const fs = require("fs-extra");
-const path = require("path");
-const { alldown } = require("shaon-videos-downloader");
-
-/* ===== SETTINGS ===== */
-const cooldown = new Map();
-const downloadedLinks = new Set();
-const MAX_LINK_CACHE = 100;
-
-const cacheDir = path.join(__dirname, "cache");
-const statsPath = path.join(__dirname, "autodl_stats.json");
-
-/* ===== INIT ===== */
-if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
-if (!fs.existsSync(statsPath)) {
-  fs.writeJsonSync(statsPath, { total: 0, users: {} }, { spaces: 2 });
-}
+const tinyurl = require("tinyurl");
+const baseApiUrl = async () => {
+  const base = await axios.get(
+    `https://raw.githubusercontent.com/Mostakim0978/D1PT0/refs/heads/main/baseApiUrl.json`,
+  );
+  return base.data.api;
+};
 
 module.exports = {
   config: {
     name: "autodl",
-    version: "3.0.0",
-    hasPermission: 0,
-    credits: "MR JUWEL",
-    description: "Auto download Facebook & TikTok videos",
-    commandCategory: "auto",
-    usages: "Just share or paste video link",
-    cooldowns: 5
+    version: "1.0.1",
+    credits: "Dipto",
+    cooldowns: 0,
+    hasPermssion: 0,
+    description:
+      "𝗗𝗼𝘄𝗻𝗹𝗼𝗮𝗱 𝘃𝗶𝗱𝗲𝗼 𝗳𝗿𝗼𝗺 𝘁𝗶𝗸𝘁𝗼𝗸, 𝗳𝗮𝗰𝗲𝗯𝗼𝗼𝗸, 𝗜𝗻𝘀𝘁𝗮𝗴𝗿𝗮𝗺, 𝗬𝗼𝘂𝗧𝘂𝗯𝗲, 𝗮𝗻𝗱 𝗺𝗼𝗿𝗲",
+    category: "𝗠𝗘𝗗𝗜𝗔",
+    commandCategory: "media",
+    usages: "[video_link]",
+    usePrefix: true,
+    Prefix: true,
+    dependencies: {
+      axios: "",
+      "fs-extra": "",
+      path: "",
+      tinyurl: "",
+    },
   },
 
-  run: async () => {},
+  run: async function ({ api, args, event }) {
+    const dipto = event.messageReply?.body || args[0];
 
-  handleEvent: async function ({ api, event }) {
+    if (!dipto) {
+      api.setMessageReaction("❌", event.messageID, (err) => {}, true);
+    }
     try {
-      let videoURL = null;
+      api.setMessageReaction("⏳", event.messageID, (err) => {}, true);
 
-      /* ===== LINK DETECT ===== */
-      if (event.body && event.body.includes("http")) {
-        videoURL = event.body.match(/https?:\/\/[^\s]+/)?.[0];
-      }
-
-      if (!videoURL && event.share?.url) {
-        videoURL = event.share.url;
-      }
-
-      if (!videoURL && event.attachments?.length) {
-        for (const att of event.attachments) {
-          if (att.url) {
-            videoURL = att.url;
-            break;
-          }
-        }
-      }
-
-      if (!videoURL) return;
-
-      const userID = event.senderID;
-      const now = Date.now();
-
-      /* ===== COOLDOWN ===== */
-      if (cooldown.has(userID) && now - cooldown.get(userID) < 5000) {
-        return api.sendMessage(
-          "⏱️ একটু ধীরে! ৫ সেকেন্ড পর আবার চেষ্টা করো।",
-          event.threadID,
-          event.messageID
-        );
-      }
-      cooldown.set(userID, now);
-
-      /* ===== DUPLICATE CHECK ===== */
-      if (downloadedLinks.has(videoURL)) {
-        return api.sendMessage(
-          "⚠️ এই ভিডিওটি আগে ডাউনলোড করা হয়েছে!",
-          event.threadID,
-          event.messageID
-        );
-      }
-
-      api.setMessageReaction("⚡", event.messageID, () => {}, true);
-      api.sendTypingIndicator(event.threadID, true);
-
-      const startTime = Date.now();
-
-      /* ===== DOWNLOAD INFO ===== */
-      const data = await alldown(videoURL);
-      if (!data?.url) throw new Error("Download failed");
-
-      api.setMessageReaction("⏳", event.messageID, () => {}, true);
-
-      let type = "Video";
-      if (/tiktok/i.test(videoURL)) type = "TikTok Video";
-      if (/facebook|fb/i.test(videoURL)) type = "Facebook Video";
-      if (/reel|short/i.test(videoURL)) type = "Reel / Short";
-
-      const title = data.title || "Shared Video";
-
-      const filePath = path.join(
-        cacheDir,
-        `autodl_${userID}_${Date.now()}.mp4`
+      const { data } = await axios.get(
+        `${await baseApiUrl()}/alldl?url=${encodeURIComponent(dipto)}`
       );
+      const filePath = __dirname + `/cache/vid.mp4`;
+      const vid = (
+        await axios.get(data.result, { responseType: "arraybuffer" })
+      ).data;
 
-      /* ===== FETCH VIDEO ===== */
-      const video = await axios.get(data.url, {
-        responseType: "arraybuffer",
-        timeout: 30000
-      });
+      fs.writeFileSync(filePath, Buffer.from(vid, "utf-8"));
+      const url = await tinyurl.shorten(data.result);
+      api.setMessageReaction("✅", event.messageID, (err) => {}, true);
 
-      const sizeMB = video.data.length / (1024 * 1024);
-      if (sizeMB > 25) {
-        api.sendTypingIndicator(event.threadID, false);
-        return api.sendMessage(
-          "❌ ভিডিওটি 25MB এর বেশি, পাঠানো সম্ভব নয়!",
-          event.threadID
-        );
-      }
-
-      fs.writeFileSync(filePath, video.data);
-      api.setMessageReaction("📤", event.messageID, () => {}, true);
-
-      /* ===== STATS ===== */
-      const stats = fs.readJsonSync(statsPath);
-      stats.total++;
-      stats.users[userID] = (stats.users[userID] || 0) + 1;
-      fs.writeJsonSync(statsPath, stats, { spaces: 2 });
-
-      downloadedLinks.add(videoURL);
-      if (downloadedLinks.size > MAX_LINK_CACHE) {
-        downloadedLinks.delete(downloadedLinks.values().next().value);
-      }
-
-      const timeTaken = ((Date.now() - startTime) / 1000).toFixed(2);
-      api.sendTypingIndicator(event.threadID, false);
-
-      /* ===== SEND MESSAGE ===== */
       api.sendMessage(
         {
-          body:
-`┏━━🎬 AUTO DOWNLOAD ━━┓
-📌 Title : ${title}
-🎞️ Source: ${type}
-
-📦 Size  : ${sizeMB.toFixed(2)} MB
-⏱️ Time  : ${timeTaken}s
-
-👤 Your DL : ${stats.users[userID]}
-📥 Total  : ${stats.total}
-
-✅ Download Complete
-┗━━━━━━━━━━━━━━━━━┛`,
-          attachment: fs.createReadStream(filePath)
+          body: `${data.cp || null}\n✅ | Link: ${url || null}`,
+          attachment: fs.createReadStream(filePath),
         },
         event.threadID,
         () => fs.unlinkSync(filePath),
-        event.messageID
+        event.messageID,
       );
+      if (dipto.startsWith("https://i.imgur.com")) {
+        const dipto3 = dipto.substring(dipto.lastIndexOf("."));
 
-      api.setMessageReaction("✅", event.messageID, () => {}, true);
+        const response = await axios.get(dipto, {
+          responseType: "arraybuffer",
+        });
 
-    } catch (err) {
-      console.error("[AUTO DL ERROR]", err);
-      api.sendTypingIndicator(event.threadID, false);
-      api.setMessageReaction("❌", event.messageID, () => {}, true);
-      api.sendMessage(
-        "⚠️ ভিডিও ডাউনলোড করা যায়নি! Public ভিডিও হলে আবার চেষ্টা করো।",
-        event.threadID
-      );
+        const filename = __dirname + `/cache/dipto${dipto3}`;
+
+        fs.writeFileSync(filename, Buffer.from(response.data, "binary"));
+        api.sendMessage(
+          {
+            body: `✅ | Downloaded from link`,
+            attachment: fs.createReadStream(filename),
+          },
+          event.threadID,
+          () => fs.unlinkSync(filename),
+          event.messageID,
+        );
+      }
+    } catch (error) {
+      api.setMessageReaction("❎", event.messageID, (err) => {}, true);
+      api.sendMessage(error, event.threadID, event.messageID);
     }
-  }
+  },
 };
