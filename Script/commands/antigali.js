@@ -4,16 +4,16 @@ const path = __dirname + '/antigaliStatus.json';
 let offenseTracker = {}; // threadID -> userID -> { count, uidSaved }
 const badWords = [
   "fuck","fucking","motherfucker","mother fucker","abal","fucker",
-  "bitch","slut","whore","asshole","bastard","dick","chdi",
-  "retard","pussy","cunt","gay","lesbian","xodi","nigga","nigger",
-  "cock","jerk","wanker","porn","sucker","bollocks","bloodyhell",
-  "xoda","bullshit","voda","douche","douchebag","moron","hada",
-  "scumbag","Head","prick","fag","faggot","মাদারচোদ","চুদি","মাগি",
+  "Sawya","sawya","Voda","voda","Juwel ke chudi","MG","chdi",
+  "tok fuck","tui magi","magi","Magi","mang","tok chudi","bokacoda","xodi","Abal choda","Bokacoda",
+  "toke🖕🖕🖕","🖕🖕🖕","Pompom","pompom","Toke🖕","bollocks","bloodyhell",
+  "xoda","chup magi","Tui magi","tui magi","tor heda","Tor heda","hada",
+  "Chup magi","Head","Toke🖕🖕","🖕","🖕🖕","মাদারচোদ","চুদি","মাগি",
   "কার বাল","সাউয়া বেডি","নিছের বাল","চোকাচোদা","চুদবো","চুদানির পোলা",
-  "মাং","সাউয়া","তোর সাউয়া","মাংগের বেডি","মাংগের গুপ","বালের গুপ",
+  "মাং","মাংগের বেডি","মাংগের গুপ","সাউয়ার বট","ভোদা","তোর মার ভোদা","সাউয়ার কথা","বোকাচোদা বট","বট বোকাচোদা","সাউয়া","জুয়েল কে চুূদি","জুয়েল বোকাচোদা","তোর সাউয়া","তোর মায়ের সাউয়া","তোর বোনের সাউয়া","তোর সাউয়া মাগি","তোর সাউয়া","মাংগের বেডি","মাংগের গুপ","বালের গুপ",
   "গিটার বাজাও","জাও গিটার বাজাও","হাত মারবে","হাত মারবো","হাত মারো",
   "হাত মাড়ি","হাত মারতে জাবে","গিটার বাজাবো","পুটকি","রেন্ডির ছেলে",
-  "রেন্ডি মেয়ে","রেন্ডি","এডমিন এর বাল","সাউয়ার গুপ","মাংগের গুপ",
+  "রেন্ডি মেয়ে","রেন্ডি","এডমিন এর বাল","তুই মাগি","তোর চুদি","চোদার টাইম নাই","তোর মতো মাগি কে","তোর মতো মাগি","তোক চুূদি মাগি","তুই ১২ ভাতারী মাগি"," তুই হাত মাড়া মাগি","হাত মার","হাত মারো","হাত মাড়া মাগি","হাত মাড়া মাগি তুই"," তোর মা মাগি","তোর বোন মাগি","তোর মা মাগি বোকাচোদা","তোর বোন মাগি","বোকাচোদা","তোর মাকে চুদি মাদারচোদ","তোর মাকে চুদি","তোর মাকে আমি চুদি","তোর বোনকে আমি চুদি","তোর বোনকে চুদি","সাউয়ার গুপ","মাংগের গুপ",
   "আবাল নাকি","জুয়েল চোকাচোদা","বোকাচোদা জুয়েল","জুয়েল কে চুদি"
 ];
 
@@ -179,14 +179,16 @@ ${extra}
       }
 
       try {
-        await api.removeUserFromGroup(userID, threadID);
-        userData.count = 0;
-        return api.sendMessage(
+  await api.sendMessage(
 `🚨 ব্যবহারকারী ${userName} (UID: ${userID})
 বারবার অশালীন শব্দ ব্যবহারের কারণে গ্রুপ থেকে সরানো হয়েছে।`,
-          threadID
-        );
-      } catch {
+    threadID
+  );
+
+  await api.removeUserFromGroup(userID, threadID);
+  userData.count = 0;
+
+} catch {
         userData.count = 2;
         return api.sendMessage(
 `⚠️ ${userName} (${userID})-কে কিক করতে ব্যর্থ।`,
