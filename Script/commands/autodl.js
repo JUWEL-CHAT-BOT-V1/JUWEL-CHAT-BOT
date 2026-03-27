@@ -1,72 +1,42 @@
-const axios = require("axios");
-const fs = require("fs-extra");
-
 module.exports = {
- config: {
-  name: "autodl",
-  version: "1.0.0",
-  hasPermssion: 0,
-  credits: "MR JUWEL",
-  description: "Auto video download (Fixed & Stylish)",
-  commandCategory: "user",
-  usages: "",
-  cooldowns: 5,
- },
+ config:{
+ name: "autodl",
+ version: "0.0.2",
+ hasPermssion: 0,
+ credits: "MR JUWEL",
+ description: "auto video download",
+ commandCategory: "user",
+ usages: "",
+ cooldowns: 5,
+},
+run: async function({ api, event, args }) {},
+handleEvent: async function ({ api, event, args }) {
+ const axios = require("axios")
+ const request = require("request")
+ const fs = require("fs-extra")
+ const content = event.body ? event.body : '';
+ const body = content.toLowerCase();
+ const { alldown } = require("shaon-videos-downloader")
+ if (body.startsWith("https://")) {
+ api.setMessageReaction("🔰", event.messageID, (err) => {}, true);
+const data = await alldown(content);
+ console.log(data)
+ let Shaon = data.url;
+ api.setMessageReaction("📛", event.messageID, (err) => {}, true);
+ const video = (await axios.get(Shaon, {
+ responseType: "arraybuffer",
+ })).data;
+ fs.writeFileSync(__dirname + "/cache/auto.mp4", Buffer.from(video, "utf-8"))
 
- run: async function () {},
+ return api.sendMessage({
+ body: `╔═══════✦❘༻༺❘✦═══════╗
+⎯͢🩷ꤪ⁽𝐌ꤪ𝆠፝֟𝐑₎ꜛ⪼─⃞⤹𐙚 𝐉𝆠፝֟🅤𝆠፝֟𝐖𝆠፝֟🅔𝆠፝֟𝐋༢ꜛ國🩷ꤪ🪽
+ 📽️ ▶️ 𝗔𝗨𝗧𝗢 𝗗𝗢𝗪𝗡𝗟𝗢𝗔𝗗𝗘𝗥 ▶️ 🎬
 
- handleEvent: async function ({ api, event }) {
-  try {
-   const { alldown } = require("shaon-videos-downloader");
+╚═══════✦❘༻༺❘✦═══════╝`,
+ attachment: fs.createReadStream(__dirname + "/cache/auto.mp4")
 
-   const content = event.body ? event.body.trim() : "";
-   if (!content.startsWith("http://") && !content.startsWith("https://")) return;
-
-   // React loading
-   api.setMessageReaction("⏳", event.messageID, () => {}, true);
-
-   const data = await alldown(content);
-   if (!data || !data.url) {
-    return api.sendMessage("❌ Video download failed!", event.threadID, event.messageID);
-   }
-
-   const videoUrl = data.url;
-
-   // Download video
-   const res = await axios({
-    url: videoUrl,
-    method: "GET",
-    responseType: "stream"
-   });
-
-   const filePath = __dirname + "/cache/auto.mp4";
-   const writer = fs.createWriteStream(filePath);
-
-   res.data.pipe(writer);
-
-   writer.on("finish", () => {
-    api.setMessageReaction("✅", event.messageID, () => {}, true);
-
-    api.sendMessage({
-     body: `🌟✨ 𝐌𝐑 🅙𝐔🅦𝐄🅛 ✨🌟
-
-🚀 Auto Video Downloader 🚀
-
-📥 Download Ready! 🎬
-Enjoy the Video in HD!
-
-🎀 Stay Tuned for More! 🎀`,
-     attachment: fs.createReadStream(filePath)
-    }, event.threadID, () => fs.unlinkSync(filePath), event.messageID);
-   });
-
-   writer.on("error", () => {
-    api.sendMessage("❌ File write error!", event.threadID, event.messageID);
-   });
-
-  } catch (err) {
-   console.error(err);
-   api.sendMessage("❌ Something went wrong!", event.threadID, event.messageID);
-  }
+ }, event.threadID, event.messageID);
  }
-};
+}
+}
